@@ -179,7 +179,32 @@ git clone https://github.com/Mutoy-choi/dacon_hansol3
 
 ### 2. 데이터 및 RAG DB 준비 (필수)
 
-FastAPI 백엔드가 유사 사례를 검색하기 위해 FAISS 인덱스가 필요합니다. `database.csv` 파일이 `backend/` 디렉토리에 있는지 확인한 후, 다음 스크립트를 실행하여 인덱스를 생성합니다.
+FastAPI 백엔드가 유사 사례를 검색하기 위해 **사고 사례 임베딩 데이터(`vectorized_data.npz`)** 와 **건설안전지침 FAISS 인덱스**가 필요합니다.
+
+**A. 사고 사례 임베딩 데이터 (`vectorized_data.npz`) 준비:**
+
+이 파일은 `database.csv`(`train.csv`)의 사고 정보를 벡터화하여 저장한 것입니다. 다음 **두 가지 방법 중 하나**를 선택하여 준비합니다.
+
+*   **방법 1 (다운로드):**
+    1.  [여기](https://drive.google.com/file/d/1TgNFsKpii-SGkkxd6Rd7MLXWJuJ2NZQn/view?usp=drive_link)에서 `vectorized_data.npz` 파일을 다운로드합니다.
+    2.  다운로드한 파일을 프로젝트 내의 `backend/` 디렉토리로 이동시킵니다.
+
+*   **방법 2 (직접 생성):**
+    1.  백엔드 디렉토리로 이동하여 필요한 라이브러리를 설치합니다.
+        ```bash
+        cd backend
+        pip install -r requirements.txt
+        cd ..
+        ```
+    2.  `precompute_vectors.py` 스크립트를 실행합니다.
+        ```bash
+        python precompute_vectors.py
+        ```
+        *   **주의:** 이 스크립트는 `database.csv`를 읽어 `ibm-granite/granite-embedding-107m-multilingual` 모델로 임베딩을 생성합니다. **GPU 환경이 권장**되며, 모델 다운로드 및 임베딩 생성에 상당한 시간이 소요될 수 있습니다.
+
+**B. 건설안전지침 FAISS 인덱스 생성:**
+
+`database.csv` 파일이 `backend/` 디렉토리에 있는지 확인한 후, 다음 스크립트를 실행하여 인덱스를 생성합니다.
 
 1.  **백엔드 디렉토리로 이동**:
     ```bash
@@ -187,24 +212,27 @@ FastAPI 백엔드가 유사 사례를 검색하기 위해 FAISS 인덱스가 필
     ```
 2.  **(로컬 실행 시) 가상 환경 생성 및 활성화 (권장)**:
     ```bash
+    # 이미 생성했다면 source venv/bin/activate 또는 venv\Scripts\activate 실행
+    # 생성하지 않았다면:
     python -m venv venv
     source venv/bin/activate # Linux/macOS
     # venv\Scripts\activate # Windows
     ```
-3.  **필요 패키지 설치**:
+3.  **필요 패키지 설치 (이미 했다면 건너뛰기)**:
     ```bash
     pip install -r requirements.txt
-    # requirements.txt에 faiss-cpu 또는 faiss-gpu가 포함되어 있어야 함
-    # faiss-gpu 설치 시 CUDA 환경 설정이 필요할 수 있음
     ```
-4.  **FAISS 인덱스 및 관련 데이터 생성**:
+4.  **FAISS 인덱스 생성**:
     ```bash
     python buildRAGdb.py
     ```
-    *   이 스크립트는 `database.csv`를 읽어 텍스트 임베딩을 계산하고, `faiss_index/` 디렉토리에 FAISS 인덱스 파일을 생성합니다.
-    *   임베딩 모델 다운로드 및 인덱스 생성에 시간이 소요될 수 있습니다. (GPU 사용 시 단축)
-    *   (선택) 필요시 `cleanDB.py`를 사용하여 `database.csv`를 전처리할 수 있습니다.
-
+    *   이 스크립트는 건설안전지침 관련 데이터를 임베딩하고 `faiss_index/` 디렉토리에 FAISS 인덱스 파일을 생성합니다.
+    *   GPU 사용 시 더 빠르게 완료됩니다.
+5.  **(선택) 데이터 정제:** 필요시 `cleanDB.py`를 사용하여 `database.csv`를 전처리할 수 있습니다. (실행 전 `buildRAGdb.py` 또는 `precompute_vectors.py` 실행 필요)
+6.  **프로젝트 루트 디렉토리로 복귀**:
+    ```bash
+    cd ..
+    ```
 ### 3. Docker Compose로 실행하기 (권장)
 
 Docker를 사용하면 모든 구성 요소를 격리된 환경에서 쉽게 실행할 수 있습니다.
