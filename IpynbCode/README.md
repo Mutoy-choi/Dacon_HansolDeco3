@@ -6,9 +6,9 @@
 
 주요 전략은 다음과 같습니다:
 1.  다국어 임베딩 모델(`ibm-granite/granite-embedding-107m-multilingual`)을 사용하여 사고 관련 텍스트 정보(사고 원인, 공종 등)를 벡터 임베딩으로 변환합니다. (실험 결과, 다국어 모델이 문맥 이해도 측면에서 더 우수하다고 판단)
-2.  다양한 특징(Feature) 벡터 간의 **가중 코사인 유사도(Weighted Cosine Similarity)**를 계산하여 학습 데이터 내에서 유사한 과거 사고 사례를 검색합니다. (가중치는 **사고 원인, 사고 객체, 공종** 중심으로 실험적으로 결정)
+2.  다양한 특징(Feature) 벡터 간의 **가중 코사인 유사도(Weighted Cosine Similarity)** 를 계산하여 학습 데이터 내에서 유사한 과거 사고 사례를 검색합니다. (가중치는 **사고 원인, 사고 객체, 공종** 중심으로 실험적으로 결정)
 3.  검색된 유사 사례들의 정보(기존 대응 대책 포함)와 새로운 사고(테스트 데이터) 정보를 결합하여 **검색 증강 생성(Retrieval-Augmented Generation, RAG)** 방식의 프롬프트를 구성합니다.
-4.  로컬 LLM(Ollama - Alibaba의 **Qwen-32B-4bit**)에 **Zero-Shot-CoT (Chain-of-Thought)**를 유도하는 프롬프트를 입력하여, 주어진 사고에 대한 최적의 재발방지대책을 생성하도록 합니다. (데이터 노이즈를 고려하여 LLM의 일반화 및 추론 능력 활용)
+4.  로컬 LLM(Ollama - Alibaba의 **Qwen-32B-4bit**)에 **Zero-Shot-CoT (Chain-of-Thought)** 를 유도하는 프롬프트를 입력하여, 주어진 사고에 대한 최적의 재발방지대책을 생성하도록 합니다. (데이터 노이즈를 고려하여 LLM의 일반화 및 추론 능력 활용)
 5.  생성된 텍스트를 최종 제출 형식에 맞게 별도의 한국어 임베딩 모델(`jhgan/ko-sbert-sts`)을 사용하여 벡터화합니다. (대회 평가 메트릭 고려)
 
 (이 프로젝트는 DACON의 "건설 사고 예측 AI 경진대회" 데이터를 기반으로 한 것으로 보입니다.)
@@ -56,7 +56,7 @@
     *   **결론:** 데이터 노이즈(입력 특징 대비 타겟 답변의 일반성)로 인해 파인튜닝보다 **LLM의 일반화 및 추론 능력**을 활용하는 것이 유리하다고 판단했습니다. 특히 추론 능력이 뛰어난 **QwQ-32B**를 RAG 모델로 선택했습니다. (강화학습 데이터 구축을 위한 프로토타입 구상도 고려)
 
 3.  **RAG 성능 개선:**
-    *   **다중 특징 및 다국어 임베딩:** 검색 정확도를 높이기 위해 가중치 대상 특징을 `사고원인`, `공종`, `작업프로세스`, `인적사고`, `물적사고`, `장소`, `사고객체`, `부위`로 확장했습니다. 또한, 실험 결과 문맥 이해도가 더 뛰어난 다국어 모델 **`ibm-granite/granite-embedding-107m-multilingual`**로 교체하여 유사 사례 검색용 임베딩을 생성했습니다. (Qwen-32B 5-shot RAG 점수: 0.4730, 문맥 유사성 개선 확인)
+    *   **다중 특징 및 다국어 임베딩:** 검색 정확도를 높이기 위해 가중치 대상 특징을 `사고원인`, `공종`, `작업프로세스`, `인적사고`, `물적사고`, `장소`, `사고객체`, `부위`로 확장했습니다. 또한, 실험 결과 문맥 이해도가 더 뛰어난 다국어 모델 **`ibm-granite/granite-embedding-107m-multilingual`** 로 교체하여 유사 사례 검색용 임베딩을 생성했습니다. (Qwen-32B 5-shot RAG 점수: 0.4730, 문맥 유사성 개선 확인)
     *   **가중치 최적화 탐색 (MLP):**
         *   MLP 기반 Self-Supervised Learning (Pairwise Loss) 실험을 통해 각 특징의 최적 가중치를 탐색했습니다. 학습 목표는 (가중합된 사고 요소 벡터 간 유사도)와 (대응 대책 벡터 간 유사도) 차이를 최소화하는 것이었습니다.
         *   실험 결과, **'사고원인'** 특징이 압도적으로 높은 가중치(약 0.68)를 받았습니다.
@@ -102,11 +102,3 @@
 *   **Two-Model Embedding Strategy:** RAG 검색(문맥 이해)과 최종 제출(대회 메트릭)에 각각 최적화된 임베딩 모델 사용.
 *   **Local LLM (Ollama + Qwen):** 외부 API 없이 Qwen-32B-4bit 모델을 로컬에서 구동.
 *   **Data Cleaning & Filtering:** 체계적인 결측치 처리 및 LLM 응답 후처리(정제, 중국어 필터링).
-
-## 🚀 실행 방법
-
-1.  필요한 라이브러리를 설치합니다. (`pip install pandas numpy seaborn matplotlib torch sentence-transformers scikit-learn ollama tqdm langdetect dacon_submit_api`)
-2.  **Ollama를 설치**하고 **Qwen-32B-4bit 모델** (`qwq` 또는 해당 모델명)을 다운로드 및 실행합니다. (`ollama run qwen:32b-chat-q4_K_M` 와 유사)
-3.  데이터 파일 (`train.csv`, `test.csv`)을 노트북 파일과 동일한 디렉토리에 위치시킵니다.
-4.  Jupyter Notebook 또는 Python 스크립트를 실행합니다. (GPU 환경 권장)
-5.  생성된 `QWQ_Allfeature_RAG_submission.csv` 파일을 확인하거나 DACON에 제출합니다.
