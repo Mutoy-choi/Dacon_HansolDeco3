@@ -1,0 +1,112 @@
+# 건설 사고 재발방지대책 생성 프로젝트 (RAG 기반)
+
+## 📄 프로젝트 개요
+
+이 프로젝트는 건설 현장에서 발생한 사고 데이터(원인, 공종, 작업 프로세스, 장소, 사고객체, 부위 등)를 분석하여, 새로운 사고 발생 시 가장 적절한 **재발방지대책 및 향후 조치 계획**을 생성하는 것을 목표로 합니다.
+
+주요 전략은 다음과 같습니다:
+1.  다국어 임베딩 모델(`ibm-granite/granite-embedding-107m-multilingual`)을 사용하여 사고 관련 텍스트 정보(사고 원인, 공종 등)를 벡터 임베딩으로 변환합니다. (실험 결과, 다국어 모델이 문맥 이해도 측면에서 더 우수하다고 판단)
+2.  다양한 특징(Feature) 벡터 간의 **가중 코사인 유사도(Weighted Cosine Similarity)**를 계산하여 학습 데이터 내에서 유사한 과거 사고 사례를 검색합니다. (가중치는 **사고 원인, 사고 객체, 공종** 중심으로 실험적으로 결정)
+3.  검색된 유사 사례들의 정보(기존 대응 대책 포함)와 새로운 사고(테스트 데이터) 정보를 결합하여 **검색 증강 생성(Retrieval-Augmented Generation, RAG)** 방식의 프롬프트를 구성합니다.
+4.  로컬 LLM(Ollama - Alibaba의 **Qwen-32B-4bit**)에 **Zero-Shot-CoT (Chain-of-Thought)**를 유도하는 프롬프트를 입력하여, 주어진 사고에 대한 최적의 재발방지대책을 생성하도록 합니다. (데이터 노이즈를 고려하여 LLM의 일반화 및 추론 능력 활용)
+5.  생성된 텍스트를 최종 제출 형식에 맞게 별도의 한국어 임베딩 모델(`jhgan/ko-sbert-sts`)을 사용하여 벡터화합니다. (대회 평가 메트릭 고려)
+
+(이 프로젝트는 DACON의 "건설 사고 예측 AI 경진대회" 데이터를 기반으로 한 것으로 보입니다.)
+
+## 💾 데이터
+
+*   `train.csv`: 학습 데이터. 다양한 사고 관련 정보와 해당 사고에 대한 '재발방지대책 및 향후조치계획' 포함 (약 23,421개).
+*   `test.csv`: 테스트 데이터. '재발방지대책 및 향후조치계획' 열이 없음 (964개). 이 데이터에 대한 대책을 생성하고 벡터화하는 것이 목표.
+*   `sample_submission.csv`: 샘플 제출 데이터.
+*   `llm_results_allfeatures.csv`: 테스트 데이터 각 항목에 대해 LLM이 생성한 재발방지대책 텍스트 결과 저장 파일 (중간 결과물).
+*   `QWQ_Allfeature_RAG_submission.csv`: 최종 제출 파일. 테스트 데이터 ID, LLM이 생성한 재발방지대책 텍스트, 그리고 이 텍스트를 `jhgan/ko-sbert-sts` 모델로 임베딩한 768차원 벡터 포함.
+
+## ⚙️ 개발 환경 및 주요 라이브러리
+
+*   **언어:** Python 3
+*   **핵심 라이브러리:**
+    *   `pandas`, `numpy`: 데이터 처리 및 분석
+    *   `seaborn`, `matplotlib`: 데이터 시각화 (한글 폰트 설정 포함)
+    *   `torch`, `torch.nn`, `torch.nn.functional`: 딥러닝 프레임워크 (GPU 사용 확인, MLP 실험)
+    *   `sentence-transformers`: 텍스트 임베딩 모델 로딩 및 사용
+        *   `ibm-granite/granite-embedding-107m-multilingual`: **유사 사례 검색용** 임베딩 생성 모델
+        *   `jhgan/ko-sbert-sts`: **최종 제출용** 임베딩 생성 모델
+    *   `sklearn`:
+        *   `metrics.pairwise.cosine_similarity`: 코사인 유사도 계산
+    *   `ollama`: 로컬 LLM 실행 및 상호작용 (**Alibaba Qwen-32B-4bit**)
+    *   `tqdm`: 진행 상태 표시
+    *   `langdetect`: 생성된 텍스트의 언어 감지 (중국어 필터링용)
+    *   `re`: 정규 표현식 (텍스트 정제용)
+    *   `dacon_submit_api`: DACON 대회 제출용 API
+
+## 🔬 연구 흐름 및 실험 과정
+
+이 프로젝트는 다음과 같은 단계와 실험을 거쳐 최종 전략을 결정했습니다.
+
+1.  **초기 분석 및 베이스라인:**
+    *   **데이터 전처리:** `인적사고`, `물적사고`의 빈 값은 '없음'으로 채우고, 다른 주요 특징(사고원인, 공종 등)의 결측치는 해당 행을 제거(`dropna`)했습니다. (전체 약 23k 중 687개 제거로 데이터 손실 최소화)
+    *   **Mean Vector Baseline:** 초기 제출(LB 0.5464)은 mean vector 방식으로 추정되며, 이는 의미 있는 답변 생성이 어렵다고 판단했습니다.
+    *   **Phi-4 LoRA Fine-tuning 시도:** Phi-4 모델에 LoRA 파인튜닝을 적용했으나, 결과가 mean vector와 유사하게 학습되는 경향을 보여 데이터 정제 또는 다른 접근 방식의 중요성을 인지했습니다. 또한, 대회 메트릭(mean vector 기반 유사도) 자체의 한계를 느끼고 새로운 평가 지표 구상의 필요성을 느꼈습니다.
+
+2.  **RAG 접근법 도입 및 LLM 비교:**
+    *   **초기 RAG (임의 가중치, ko-sbert):** `사고객체`, `사고원인` 특징에 임의 가중치를 부여하고 `jhgan/ko-sbert-sts` 임베딩을 사용하여 5-shot RAG를 실험했습니다.
+        *   **QwQ-32B (0.4774):** 추론 과정 설명이 자연스러웠으나 간혹 중국어가 출력되는 문제가 있었습니다.
+        *   **Phi-4 Fine-tuned (0.3462):** 추론 과정이 부족하고 mean vector와 유사한 답변 품질을 보였습니다.
+        *   **Gemma-3 27B (0.4731):** 추론 과정은 부족했으나 답변 품질은 상대적으로 양호했습니다.
+    *   **결론:** 데이터 노이즈(입력 특징 대비 타겟 답변의 일반성)로 인해 파인튜닝보다 **LLM의 일반화 및 추론 능력**을 활용하는 것이 유리하다고 판단했습니다. 특히 추론 능력이 뛰어난 **QwQ-32B**를 RAG 모델로 선택했습니다. (강화학습 데이터 구축을 위한 프로토타입 구상도 고려)
+
+3.  **RAG 성능 개선:**
+    *   **다중 특징 및 다국어 임베딩:** 검색 정확도를 높이기 위해 가중치 대상 특징을 `사고원인`, `공종`, `작업프로세스`, `인적사고`, `물적사고`, `장소`, `사고객체`, `부위`로 확장했습니다. 또한, 실험 결과 문맥 이해도가 더 뛰어난 다국어 모델 **`ibm-granite/granite-embedding-107m-multilingual`**로 교체하여 유사 사례 검색용 임베딩을 생성했습니다. (Qwen-32B 5-shot RAG 점수: 0.4730, 문맥 유사성 개선 확인)
+    *   **가중치 최적화 탐색 (MLP):**
+        *   MLP 기반 Self-Supervised Learning (Pairwise Loss) 실험을 통해 각 특징의 최적 가중치를 탐색했습니다. 학습 목표는 (가중합된 사고 요소 벡터 간 유사도)와 (대응 대책 벡터 간 유사도) 차이를 최소화하는 것이었습니다.
+        *   실험 결과, **'사고원인'** 특징이 압도적으로 높은 가중치(약 0.68)를 받았습니다.
+        *   **최종 결정:** MLP 결과는 '사고원인'의 중요성을 뒷받침했지만, 실제 RAG 성능 테스트 결과 **사고원인, 사고객체, 공종**에 수동으로 높은 가중치를 부여하는 것이 더 효과적이었습니다. 따라서 최종 RAG에는 실험 기반의 수동 가중치를 적용했습니다. (MLP는 mean vector 지향 가능성 고려)
+    *   **Zero-Shot-CoT 프롬프팅:** 데이터 노이즈를 고려하여, 5-shot 예시를 제공하는 대신 **Zero-Shot-CoT** ("하나씩 차근차근 생각한 뒤...") 프롬프트를 사용하여 Qwen-32B 모델의 일반화된 단계적 추론 능력을 유도했습니다. (향후 정제된 데이터에는 구체적인 추론 단계 지정이 유리할 수 있음)
+
+4.  **최종 제출 전략:**
+    *   **Two-Model Embedding:** 유사 사례 검색에는 문맥 이해를 위해 `ibm-granite` 모델을, 최종 제출용 임베딩 생성에는 대회 메트릭(한국어 STS)을 고려하여 `jhgan/ko-sbert-sts` 모델을 사용하는 **이원화 전략**을 채택했습니다.
+    *   **평가 메트릭 고려:** 대회 메트릭 외 Bert-Score, 추론 길이(CoT), TF-IDF 키워드 포함 여부 등을 종합적으로 고려하여 성능을 판단해야 함을 인지했습니다.
+
+## 🛠️ 실행 단계 상세
+
+1.  **환경 설정 및 데이터 로딩:** (위와 동일)
+2.  **데이터 전처리 및 EDA:**
+    *   `인적사고`, `물적사고` 빈 값 -> "없음" 채우기.
+    *   `사고원인`, `공종`, `사고객체`, `작업프로세스` 결측치 행 제거 (`dropna`).
+    *   Test 데이터 결측치는 ""로 채우기.
+    *   텍스트 길이, 범주형 변수 분포 시각화.
+3.  **유사 사례 검색용 임베딩 생성 (IBM Granite):**
+    *   `ibm-granite/granite-embedding-107m-multilingual` 모델 로드.
+    *   `사고원인`, `공종`, `작업프로세스`, `장소`, `사고객체`, `부위` 특징에 대해 train/test 데이터 임베딩 생성.
+4.  **가중 유사도 계산 (실험 기반 가중치):**
+    *   실험적으로 결정된 가중치 적용 (`사고원인`: 0.45 등).
+    *   특징별 코사인 유사도 계산 후 가중합하여 최종 유사도 행렬 생성 (train vs train, test vs train).
+5.  **유사 사고 검색 함수 정의:**
+    *   `find_similar_accidents_for_test` 함수 정의 (가중 코사인 유사도 기반 상위 N개 검색).
+6.  **RAG 기반 재발방지대책 생성 (Qwen + Zero-Shot-CoT):**
+    *   `generate_rag_response` 함수: Qwen-32B 모델에 Zero-Shot-CoT 프롬프트 전달 (시스템/사용자 메시지 구성). 중국어 출력 시 재생성.
+    *   `process_test_cases_with_llm` 함수: 테스트셋 전체에 RAG 파이프라인 실행, 결과는 `llm_results_allfeatures.csv` 저장.
+7.  **최종 제출 파일 생성 (Ko-SBERT):**
+    *   `clean_response` 함수: LLM 응답 정제.
+    *   `jhgan/ko-sbert-sts` 모델로 정제된 텍스트 임베딩 생성.
+    *   최종 `submission` 데이터프레임 구성 (ID, 재발방지대책 텍스트, 768차원 벡터).
+    *   `QWQ_Allfeature_RAG_submission.csv` 저장.
+8.  **DACON 제출:**
+    *   `dacon_submit_api` 사용.
+
+## ✨ 주요 특징 및 전략 요약
+
+*   **Iterative Improvement:** 베이스라인(Mean Vector)에서 시작하여 파인튜닝, 다양한 LLM 기반 RAG, 임베딩 모델 교체, 가중치 전략 탐색(MLP vs. 실험), 프롬프팅 기법 변경(5-shot -> Zero-Shot-CoT) 등 점진적인 개선 과정을 거침.
+*   **Multi-Feature Weighted Similarity (Experimental Weights):** MLP 실험 결과를 참고하되, 실제 RAG 성능에 기반하여 사고 원인, 사고 객체, 공종 중심의 가중치를 수동으로 설정하여 유사 사례 검색 정확도 향상.
+*   **RAG with Zero-Shot-CoT on Qwen:** 데이터 노이즈 환경에서 SOTA급 추론 모델인 Qwen-32B의 일반화 성능을 극대화하기 위해 Zero-Shot-CoT 프롬프팅 사용.
+*   **Two-Model Embedding Strategy:** RAG 검색(문맥 이해)과 최종 제출(대회 메트릭)에 각각 최적화된 임베딩 모델 사용.
+*   **Local LLM (Ollama + Qwen):** 외부 API 없이 Qwen-32B-4bit 모델을 로컬에서 구동.
+*   **Data Cleaning & Filtering:** 체계적인 결측치 처리 및 LLM 응답 후처리(정제, 중국어 필터링).
+
+## 🚀 실행 방법
+
+1.  필요한 라이브러리를 설치합니다. (`pip install pandas numpy seaborn matplotlib torch sentence-transformers scikit-learn ollama tqdm langdetect dacon_submit_api`)
+2.  **Ollama를 설치**하고 **Qwen-32B-4bit 모델** (`qwq` 또는 해당 모델명)을 다운로드 및 실행합니다. (`ollama run qwen:32b-chat-q4_K_M` 와 유사)
+3.  데이터 파일 (`train.csv`, `test.csv`)을 노트북 파일과 동일한 디렉토리에 위치시킵니다.
+4.  Jupyter Notebook 또는 Python 스크립트를 실행합니다. (GPU 환경 권장)
+5.  생성된 `QWQ_Allfeature_RAG_submission.csv` 파일을 확인하거나 DACON에 제출합니다.
