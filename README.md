@@ -10,6 +10,8 @@
 
 **건설 현장의 과거 사고 사례(`database.csv`)를 기반으로, FAISS를 이용한 빠른 유사 사례 검색과 로컬 LLM을 활용하여 최적의 대응 방안을 제안합니다. 이 답변을 기반으로 사용자 피드백(`responses.jsonl`)을 통해 Human Feedback이 된 높은 품질의 데이터 베이스 구축을 목표로 하는 프로젝트입니다.**
 
+* 실제 제출에 사용한 코드와 설명 -> [코드 설명과 ipynb파일일](https://github.com/Mutoy-choi/dacon_hansol3/tree/main/IpynbCode)
+
 ---
 
 **목차**
@@ -44,7 +46,6 @@
 
 이 과정에서 사용자의 선택 및 수정 내용은 `responses.jsonl` 파일에 **JSON Lines 형식으로 기록**되어 축적됩니다. 이 데이터는 향후 다양한 Human Feedback이 필요한 **강화학습** (RLHF, DPO, GRPO)방식으로 LLM 모델을 파인튜닝하거나 RAG 시스템 자체를 개선하는 데 활용될 수 있습니다. 또한, 사용자는 대응 방안 검토 중 관련 **건설안전 지침 문서를 시스템 내에서 즉시 조회**하여 참고할 수 있습니다.
 
-* 실제 제출에 사용한 코드와 설명 ![코드 설명](https://github.com/Mutoy-choi/dacon_hansol3/tree/main/IpynbCode)
 ---
 
 ## 2. 주요 특징
