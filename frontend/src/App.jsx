@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { generateResponses, saveFeedback } from "./api";
 import "./index.css";
-// generateResponsesTwice는 사용하지 않으므로 삭제하거나 추후에 필요시 사용할 수 있습니다.
 
 export default function App() {
   // ✅ 상태 변수: 백엔드 QueryRequest에 맞춘 8개 요소
@@ -105,7 +104,11 @@ export default function App() {
   const handleFetchDocuments = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8000/get_documents?accident_cause=${encodeURIComponent(accidentCause)}`
+        `http://localhost:8000/get_documents?gongjong=${encodeURIComponent(
+          gongjong
+        )}&location=${encodeURIComponent(location)}&accident_object=${encodeURIComponent(
+          accidentObject
+        )}&accident_cause=${encodeURIComponent(accidentCause)}`
       );
       const data = await response.json();
       setDocuments(data);
@@ -118,7 +121,7 @@ export default function App() {
   const formatResponse = (text) => {
     return text.replace(/<\/think>/g, "</think>\n\n");
   };
-  
+
   // ✅ 답변 선택 시 편집 모드 전환 함수
   const handleSelectAnswer = (winner, loser) => {
     setEditedAnswer(winner);
@@ -130,6 +133,7 @@ export default function App() {
   const handleSaveEditedAnswer = () => {
     // 수정된 답변을 winner로, 나머지 답변을 loser로 전달
     handleFeedback(editedAnswer, selectedLoserAnswer);
+    setIsEditing(false); // 수정 완료 후 편집 모드 종료
   };
 
   // 컴포넌트 마운트 시 첫 테스트 케이스 로드
@@ -138,247 +142,254 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gray-100 p-4 sm:p-6">
-      <div className="w-full max-w-3xl bg-white shadow-md p-4 sm:p-6 rounded-lg">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center text-blue-700 mb-4 md:mb-6">
-          건설 사고 대응 시스템
+    <div className="min-h-screen flex flex-col items-center bg-gray-100 p-0 sm:p-6">
+      <div className="w-full max-w-5xl bg-white shadow-md rounded-lg overflow-hidden">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-blue-700 py-6">
+          한솔데코 건설 사고 대응 시스템
         </h1>
 
-        {/* 입력 필드 */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            🛠 사고 객체
-          </label>
-          <input
-            type="text"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
-            value={accidentObject}
-            onChange={(e) => setAccidentObject(e.target.value)}
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ⚠️ 사고 원인
-          </label>
-          <input
-            type="text"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
-            value={accidentCause}
-            onChange={(e) => setAccidentCause(e.target.value)}
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            🏗 공종
-          </label>
-          <input
-            type="text"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
-            value={gongjong}
-            onChange={(e) => setGongjong(e.target.value)}
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            🔄 작업프로세스
-          </label>
-          <input
-            type="text"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
-            value={jobProcess}
-            onChange={(e) => setJobProcess(e.target.value)}
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            📍 장소
-          </label>
-          <input
-            type="text"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            🔖 부위
-          </label>
-          <input
-            type="text"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
-            value={part}
-            onChange={(e) => setPart(e.target.value)}
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            👥 인적 사고
-          </label>
-          <input
-            type="text"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
-            value={humanAccident}
-            onChange={(e) => setHumanAccident(e.target.value)}
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            💥 물적 사고
-          </label>
-          <input
-            type="text"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400"
-            value={materialAccident}
-            onChange={(e) => setMaterialAccident(e.target.value)}
-          />
-        </div>
-
-        {/* 응답 생성 및 관련 문서 버튼 */}
-        <button
-          className={`w-full p-3 rounded-lg text-white font-semibold ${
-            loading || !accidentObject || !accidentCause
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
-          }`}
-          onClick={handleGenerate}
-          disabled={loading || !accidentObject || !accidentCause}
-        >
-          {loading ? "생성 중..." : "🚀 답변 생성"}
-        </button>
-        <button
-          className="mt-4 w-full p-3 rounded-lg text-white font-semibold bg-purple-600 hover:bg-purple-700"
-          onClick={handleFetchDocuments}
-        >
-          📄 관련 문서 가져오기
-        </button>
-
-        {/* LLM 답변 영역 */}
-        {answers && (
-          <div className="mt-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-2">
-              📌 입력 프롬프트
-            </h2>
-            <div className="p-3 bg-gray-100 rounded-md text-gray-800 whitespace-pre-wrap">
-              {JSON.stringify(answers.query, null, 2)}
-            </div>
-
-            <h2 className="text-lg font-semibold mt-4 text-gray-700 mb-2">
-              🔍 유사 사례
-            </h2>
-            <div className="p-3 bg-gray-100 rounded-md text-gray-800">
-              {answers.top_cases.map((caseData, index) => (
-                <div key={index} className="mb-3 border-b pb-2">
-                  <p className="font-semibold">
-                    {index + 1}. (유사도:{" "}
-                    {Math.round(caseData.similarity * 100)}%)
-                  </p>
-                  <p className="text-sm">
-                    🛠 사고객체: {caseData["사고객체"]}
-                  </p>
-                  <p className="text-sm">
-                    ⚠️ 사고원인: {caseData["사고원인"]}
-                  </p>
-                  <p className="text-sm">
-                    ✅ 대응 대책: {caseData["재발방지대책 및 향후조치계획"]}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <h2 className="text-lg font-semibold mt-6 text-gray-700 mb-2">
-              💬 LLM 답변 (더 나은 답변을 선택하세요)
-            </h2>
-            {isEditing ? (
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                  선택한 답변 수정하기
-                </h3>
-                <textarea
-                  className="w-full p-3 border rounded-md"
-                  rows={6}
-                  value={editedAnswer}
-                  onChange={(e) => setEditedAnswer(e.target.value)}
+        <div className="main-container px-4 sm:px-6 pb-6">
+          <div className="left-column">
+            {/* 입력 필드 */}
+            <div className="input-fields">
+              <div className="mb-4">
+                <label className="block text-base font-medium text-gray-700 mb-1">
+                  🛠 사고 객체
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 text-lg"
+                  value={accidentObject}
+                  onChange={(e) => setAccidentObject(e.target.value)}
                 />
-                <div className="mt-2 flex gap-2">
-                  <button
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md"
-                    onClick={handleSaveEditedAnswer}
-                  >
-                    수정 완료 및 제출
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md"
-                    onClick={() => setIsEditing(false)}
-                  >
-                    취소
-                  </button>
-                </div>
               </div>
-            ) : (
-              <div className="flex flex-row gap-4">
-                <button
-                  className="flex-1 p-4 border rounded-lg bg-white shadow-md hover:shadow-lg transition"
-                  onClick={() =>
-                    handleSelectAnswer(answers.answer1, answers.answer2)
-                  }
-                >
-                  <div className="whitespace-pre-wrap break-words">
-                    {formatResponse(answers.answer1)}
+              <div className="mb-4">
+                <label className="block text-base font-medium text-gray-700 mb-1">
+                  ⚠️ 사고 원인
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 text-lg"
+                  value={accidentCause}
+                  onChange={(e) => setAccidentCause(e.target.value)}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-base font-medium text-gray-700 mb-1">
+                  🏗 공종
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 text-lg"
+                  value={gongjong}
+                  onChange={(e) => setGongjong(e.target.value)}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-base font-medium text-gray-700 mb-1">
+                  🔄 작업프로세스
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 text-lg"
+                  value={jobProcess}
+                  onChange={(e) => setJobProcess(e.target.value)}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-base font-medium text-gray-700 mb-1">
+                  📍 장소
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 text-lg"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-base font-medium text-gray-700 mb-1">
+                  🔖 부위
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 text-lg"
+                  value={part}
+                  onChange={(e) => setPart(e.target.value)}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-base font-medium text-gray-700 mb-1">
+                  👥 인적 사고
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 text-lg"
+                  value={humanAccident}
+                  onChange={(e) => setHumanAccident(e.target.value)}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-base font-medium text-gray-700 mb-1">
+                  💥 물적 사고
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 text-lg"
+                  value={materialAccident}
+                  onChange={(e) => setMaterialAccident(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* 응답 생성 버튼 */}
+            <button
+              className={`w-full p-3 rounded-lg text-white font-semibold text-lg ${
+                loading || !accidentObject || !accidentCause
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
+              onClick={handleGenerate}
+              disabled={loading || !accidentObject || !accidentCause}
+            >
+              {loading ? "생성 중..." : "🚀 답변 생성"}
+            </button>
+
+            {/* LLM 답변 영역 */}
+            {answers && (
+              <div className="mt-6">
+                <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                  📌 입력 프롬프트
+                </h2>
+                <div className="p-3 bg-gray-100 rounded-md text-gray-800 whitespace-pre-wrap mb-4 text-lg">
+                  {JSON.stringify(answers.query, null, 2)}
+                </div>
+
+                <h2 className="text-xl font-semibold mt-4 text-gray-700 mb-2">
+                  🔍 유사 사례
+                </h2>
+                <div className="p-3 bg-gray-100 rounded-md text-gray-800 mb-4">
+                  {answers.top_cases.map((caseData, index) => (
+                    <div key={index} className="mb-3 border-b pb-2">
+                      <p className="font-semibold text-lg">
+                        {index + 1}. (유사도:{" "}
+                        {Math.round(caseData.similarity * 100)}%)
+                      </p>
+                      <p className="text-base">
+                        🛠 사고객체: {caseData["사고객체"]}
+                      </p>
+                      <p className="text-base">
+                        ⚠️ 사고원인: {caseData["사고원인"]}
+                      </p>
+                      <p className="text-base">
+                        ✅ 대응 대책: {caseData["재발방지대책 및 향후조치계획"]}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <h2 className="text-xl font-semibold mt-6 text-gray-700 mb-2">
+                  💬 LLM 답변 (더 나은 답변을 선택하세요)
+                </h2>
+                {isEditing ? (
+                  <div className="mt-4">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                      선택한 답변 수정하기
+                    </h3>
+                    <textarea
+                      className="w-full p-3 border rounded-md h-48 text-lg"
+                      rows={10}
+                      value={editedAnswer}
+                      onChange={(e) => setEditedAnswer(e.target.value)}
+                    />
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        className="px-4 py-2 bg-blue-500 text-white rounded-md text-lg"
+                        onClick={handleSaveEditedAnswer}
+                      >
+                        수정 완료 및 제출
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md text-lg"
+                        onClick={() => setIsEditing(false)}
+                      >
+                        취소
+                      </button>
+                    </div>
                   </div>
-                </button>
-                <button
-                  className="flex-1 p-4 border rounded-lg bg-white shadow-md hover:shadow-lg transition"
-                  onClick={() =>
-                    handleSelectAnswer(answers.answer2, answers.answer1)
-                  }
-                >
-                  <div className="whitespace-pre-wrap break-words">
-                    {formatResponse(answers.answer2)}
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <button
+                      className="flex-1 p-4 border rounded-lg bg-white shadow-md hover:shadow-lg transition text-lg"
+                      onClick={() =>
+                        handleSelectAnswer(answers.answer1, answers.answer2)
+                      }
+                    >
+                      <div className="whitespace-pre-wrap break-words">
+                        {formatResponse(answers.answer1)}
+                      </div>
+                    </button>
+                    <button
+                      className="flex-1 p-4 border rounded-lg bg-white shadow-md hover:shadow-lg transition text-lg"
+                      onClick={() =>
+                        handleSelectAnswer(answers.answer2, answers.answer1)
+                      }
+                    >
+                      <div className="whitespace-pre-wrap break-words">
+                        {formatResponse(answers.answer2)}
+                      </div>
+                    </button>
                   </div>
-                </button>
+                )}
               </div>
             )}
+
+            {/* 수동으로 다음 테스트 케이스 불러오기 버튼 */}
+            <button
+              className="mt-6 w-full p-3 rounded-lg text-white font-semibold text-lg bg-teal-600 hover:bg-teal-700" // bg-green-600 -> bg-teal-600
+              onClick={fetchNextTestCase}
+            >
+              다음 테스트 케이스 불러오기
+            </button>
           </div>
-        )}
 
-        {/* 구분선: LLM 답변 영역과 관련 문서 영역을 명확히 분리 */}
-        {documents && <hr className="my-6 border-gray-300" />}
-
-        {/* 관련 문서 영역 */}
-        {documents && (
-          <div className="mt-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-2">
-              📄 관련 문서
-            </h2>
-            <div className="p-3 bg-gray-100 rounded-md text-gray-800">
-              {documents.documents && documents.documents.length > 0 ? (
-                documents.documents.map((doc, index) => (
-                  <div key={index} className="mb-3 border-b pb-2">
-                    <p className="font-semibold">제목: {doc.title}</p>
-                    <p className="text-sm">
-                      LLM 키워드: {doc.llm_keywords}
-                    </p>
-                    <p className="text-sm">
-                      유사도: {(doc.llm_keywords_similarity * 100).toFixed(1)}%
-                    </p>
-                    <p className="text-sm">문서 내용: {doc.chunk_content}</p>
+          {/* 오른쪽 컬럼: 관련 문서 */}
+          <div className="right-column-wrapper px-4 sm:px-6">
+            <button
+              className="w-full p-3 rounded-lg text-white font-semibold text-lg bg-purple-600 hover:bg-purple-700 mb-4"
+              onClick={handleFetchDocuments}
+            >
+              📄 관련 문서 가져오기
+            </button>
+            <div className="right-column">
+              {documents && (
+                <div className="mt-0">
+                  <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                    📄 관련 문서
+                  </h2>
+                  <div className="p-3 bg-gray-100 rounded-md text-gray-800">
+                    {documents.documents && documents.documents.length > 0 ? (
+                      documents.documents.map((doc, index) => (
+                        <div key={index} className="mb-3 border-b pb-2">
+                          <p className="font-semibold text-lg">제목: {doc.title}</p>
+                          <p className="text-base">
+                            LLM 키워드: {doc.llm_keywords}
+                          </p>
+                          <p className="text-base">
+                            유사도: {(doc.llm_keywords_similarity * 100).toFixed(1)}%
+                          </p>
+                          <p className="text-base">문서 내용: {doc.chunk_content}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-base">유사도 임계치를 만족하는 문서를 찾지 못했습니다.</p>
+                    )}
                   </div>
-                ))
-              ) : (
-                <p>유사도 임계치를 만족하는 문서를 찾지 못했습니다.</p>
+                </div>
               )}
             </div>
           </div>
-        )}
-
-        {/* 수동으로 다음 테스트 케이스 불러오기 버튼 */}
-        <button
-          className="mt-4 w-full p-3 rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700"
-          onClick={fetchNextTestCase}
-        >
-          다음 테스트 케이스 불러오기
-        </button>
+        </div>
       </div>
     </div>
   );

@@ -263,12 +263,13 @@ def is_chinese(text):
 def generate_rag_response(top_k_cases, 기준_사고객체, 기준_사고원인, 기준_공종, 기준_작업프로세스, 기준_장소, 기준_부위, 기준_인적사고, 기준_물적사고):
     system_message = (
         "<|im_start|>system\n"
-        "당신은 한국인 건설 사고 전문가입니다.\n"
-        "주어진 유사 사고 사례들을 참고하여, 가장 효과적인 재발방지대책 및 향후 조치 계획을 작성해야 합니다.\n"
-        "사고객체와 사고원인이 가장 중요한 요소이며, 인적사고와 물적사고도 중요한 고려 요소입니다.\n"
-        "공종, 작업프로세스, 장소, 부위도 반영하여 최적의 대응책을 도출하세요.\n"
-        "답변은 반드시 한국어로 작성해야 하며, 한 문장 내에서 각 요소를 반영하여 50단어 이내로 요약하세요.\n"
-        "출력 형식: '대응대책:'으로 시작하는 한 문장으로 작성하세요.\n"
+        "당신은 한국인 건설 사고 분석 전문가입니다.\n"
+        "당신의 임무는 주어진 기준 사고에 대해 유사 사례들을 단계적으로 분석하고, 사고의 주요 위험요소와 원인을 파악하여, "
+        "가장 효과적인 재발방지 대책과 향후 조치 계획을 도출하는 것입니다.\n"
+        "유사 사례에는 사고객체, 사고원인, 공종, 작업프로세스, 장소, 부위, 대응 대책 정보가 포함되어 있으므로, "
+        "각 항목을 비교·분석한 뒤, 기준 사고와 가장 유사한 패턴을 찾아 종합적으로 판단해야 합니다.\n"
+        "사고의 구조와 맥락을 단계적으로 사고한 후 결론을 도출하세요.\n"
+        "답변은 반드시 한국어로 작성해야 합니다.\n"
         "<|im_end|>"
     )
 
@@ -277,21 +278,26 @@ def generate_rag_response(top_k_cases, 기준_사고객체, 기준_사고원인,
         "[기준 사고]\n"
         f"- 사고객체: {기준_사고객체}\n"
         f"- 사고원인: {기준_사고원인}\n"
-        f"- 인적사고: {기준_인적사고}\n"
-        f"- 물적사고: {기준_물적사고}\n"
         f"- 공종: {기준_공종}\n"
         f"- 작업프로세스: {기준_작업프로세스}\n"
         f"- 장소: {기준_장소}\n"
         f"- 부위: {기준_부위}\n\n"
         "[유사 사례 - 기존 대응 대책들]:\n" +
         "\n".join([
-            f"{i+1}. 사고객체: {case['사고객체']}, 사고원인: {case['사고원인']}, 인적사고: {case['인적사고']}, 물적사고: {case['물적사고']}, 공종: {case['공종']}, "
-            f"작업프로세스: {case['작업프로세스']}, 장소: {case['장소']}, 부위: {case['부위']}, 대응 대책: {case['재발방지대책 및 향후조치계획']}"
+            # 👇 수정된 부분: 숫자 인덱스 대신 문자열 키 사용
+            f"{i+1}. 사고객체: {case.get('사고객체', 'N/A')}, "
+            f"사고원인: {case.get('사고원인', 'N/A')}, "
+            f"공종: {case.get('공종', 'N/A')}, "
+            f"작업프로세스: {case.get('작업프로세스', 'N/A')}, "
+            f"장소: {case.get('장소', 'N/A')}, "
+            f"부위: {case.get('부위', 'N/A')}, "
+            # '대응 대책' 키 이름 확인 필요 (top_k_cases 생성 시 사용한 키)
+            f"대응 대책: {case.get('재발방지대책 및 향후조치계획', 'N/A')}"
             for i, case in enumerate(top_k_cases)
         ]) + "\n\n"
-        "위의 유사 사례들을 참고하여, 기준 사고에 대한 최적의 재발방지대책 및 향후 조치 계획을 작성하세요.\n"
-        "유사 사례가 부족한 경우, 기존 대응 대책을 일반화하여 최적의 해결책을 도출하세요.\n"
-        "출력 형식: 반드시 '대응대책:'으로 시작하는 한 문장으로 작성하세요.\n"
+        "위의 유사 사례들을 참고하여, 기준 사고에 대한 최적의 재발방지대책 및 향후 조치 계획을 한 문장으로 작성하되, "
+        "반드시 \"대응대책:\"으로 시작하는 한 문장으로 답변하세요.\n"
+        "하나씩 차근차근 생각한 뒤, 최종 대응 대책을 도출하세요.\n"
         "<|im_end|>"
     )
 
@@ -409,49 +415,65 @@ def save_feedback(request: FeedbackRequest):
 
 # --- 추가: FAISS 기반 문서 검색 API ---
 @app.get("/get_documents")
-def get_documents(accident_cause: str = None):
-    if not accident_cause:
+def get_documents(gongjong: str = None, location: str = None, accident_object: str = None, accident_cause: str = None):
+    if not gongjong or not location or not accident_object:
+        # 테스트 데이터에서 첫 번째 행의 관련 정보를 가져와 기본값으로 설정
+        gongjong = str(test_data.iloc[0]["공종"]).strip()
+        accident_object = str(test_data.iloc[0]["사고객체"]).strip()
+        location = str(test_data.iloc[0]["장소"]).strip()
         accident_cause = str(test_data.iloc[0]["사고원인"]).strip()
-    log_message(f"문서 검색 요청: 사고원인={accident_cause}")
-    
+
+    search_query = f"공종: {gongjong} 사고객체: {accident_object} 장소: {location}"
+    log_message(f"문서 검색 요청: 검색어={search_query}, 사고원인={accident_cause}")
+
     try:
         embeddings = GraniteEmbeddings()
         vectordb = FAISS.load_local("faiss_index", embeddings=embeddings, allow_dangerous_deserialization=True)
     except Exception as e:
         log_message(f"FAISS 인덱스 로드 실패: {e}")
         return JSONResponse(content={"error": f"FAISS 인덱스 로드 실패: {e}"})
-    
-    results_with_scores = vectordb.similarity_search_with_score(accident_cause, k=5)
+
+    results_with_scores = vectordb.similarity_search_with_score(search_query, k=5)
     min_llm_keywords_similarity_threshold = 0.65
-    accident_cause_emb = embeddings.embed_query(accident_cause)
-    
+    search_query_emb = embeddings.embed_query(search_query)
+
     final_results = []
     for doc, score in results_with_scores:
         llm_keywords = doc.metadata.get("llm_keywords", "")
         if llm_keywords:
             llm_keywords_emb = embeddings.embed_query(llm_keywords)
-            sim = np.dot(np.array(accident_cause_emb), np.array(llm_keywords_emb)) / (
-                (np.linalg.norm(accident_cause_emb) * np.linalg.norm(llm_keywords_emb)) + 1e-8)
+            sim = np.dot(np.array(search_query_emb), np.array(llm_keywords_emb)) / (
+                (np.linalg.norm(search_query_emb) * np.linalg.norm(llm_keywords_emb)) + 1e-8)
             if sim >= min_llm_keywords_similarity_threshold:
+                # 사고 원인과 문서 내용 유사도 계산 추가
+                if accident_cause:
+                    accident_cause_emb = embeddings.embed_query(accident_cause)
+                    content_emb = embeddings.embed_query(doc.page_content)
+                    content_sim = np.dot(np.array(accident_cause_emb), np.array(content_emb)) / (
+                        (np.linalg.norm(accident_cause_emb) * np.linalg.norm(content_emb)) + 1e-8)
+                else:
+                    content_sim = 0.0
+
                 result_dict = {
                     "title": doc.metadata.get("document_title", "No Title"),
                     "faiss_score": float(score),
                     "llm_keywords_similarity": float(sim),
                     "llm_keywords": llm_keywords,
                     "metadata": doc.metadata,
-                    "chunk_content": doc.page_content
+                    "chunk_content": doc.page_content,
+                    "content_similarity": float(content_sim) # 사고 원인과 문서 내용 유사도 추가
                 }
                 final_results.append(result_dict)
+
     if not final_results:
         log_message("문서 검색: 유사도 임계치를 만족하는 문서를 찾지 못함")
         return {"message": "유사도 임계치를 만족하는 문서를 찾지 못했습니다."}
-    
+
     log_message(f"문서 검색 완료: {len(final_results)}개 문서 반환")
     return {
-        "accident_cause": accident_cause,
+        "search_query": search_query,
         "documents": final_results
     }
-
 @app.get("/")
 def read_root():
     return {"message": "LLM Feedback System is running!"}

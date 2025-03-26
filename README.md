@@ -17,12 +17,26 @@
 
 ---
 
+## 데모 시연
+
+### 1. 답변 생성 데모
+![답변 생성 데모](demo_gif\답변 생성.gif)
+*LLM이 답변을 생성하는 과정을 보여줍니다.*
+
+### 2. 답변 수정 데모
+![답변 수정 데모](demo_gif\답변 수정.gif)
+*사용자가 생성된 답변을 선택하거나 수정하는 인터페이스 예시입니다.*
+
+### 3. 문서 검색 데모
+![문서 검색 데모](demo_gif\관련 문서 가져오기.gif)
+*관련 문서를 검색하고 조회하는 기능을 확인할 수 있습니다.*
+
 ## 구성 요소
 1. **백엔드(backend)**
    - **프레임워크**: [FastAPI](https://fastapi.tiangolo.com/)
    - **포트**: 8000
    - **역할**: 
-     - 문서 벡터화(사전에 `Sentence-BERT` 등으로 임베딩 후 DB 또는 파일로 관리)
+     - 문서 벡터화(사전에 `ibm-granite/granite-embedding-107m-multilingual`로 임베딩 후 DB 또는 파일로 관리)
      - 사용자가 입력한 사고 정보와 유사도 검색
      - LLM을 통해 두 가지 대응 방안 생성
      - 사용자가 선택·수정한 결과를 저장
@@ -39,7 +53,7 @@
 3. **LLM(Ollama)**
    - **이미지**: [`ollama/ollama`](https://ollama.com)
    - **역할**:  
-     - 로컬 환경에서 LLM(예: Llama2 등) 사용
+     - 로컬 환경에서 LLM 사용
      - 백엔드가 LLM 요청 시 실행
    - **모델 다운로드 및 캐시 경로**: `/root/.ollama` (Docker 볼륨을 통해 영구 보관 가능)
 
@@ -57,10 +71,10 @@ LLM의 유사도 검색 및 대응 방안 생성을 위한 벡터 데이터가 �
 
 [다운로드 링크](https://drive.google.com/file/d/1TgNFsKpii-SGkkxd6Rd7MLXWJuJ2NZQn/view?usp=sharing)
 
-만약 커맨드 라인에서 직접 다운로드하고 싶다면, 아래의 `curl` 명령어를 사용해보세요 (파일 이름은 원하는 이름으로 수정):
+커맨드 라인에서 직접 다운로드하고 싶다면, 아래의 `curl` 명령어를 사용해보세요 (파일 이름은 원하는 이름으로 수정):
 
 ```bash
-curl -L "https://drive.google.com/uc?export=download&id=1TgNFsKpii-SGkkxd6Rd7MLXWJuJ2NZQn" -o backend/your_file_name.ext
+curl -L "https://drive.google.com/uc?export=download&id=1TgNFsKpii-SGkkxd6Rd7MLXWJuJ2NZQn" -o backend/vectorized_data.npz
 ```
 
 ### 2. precompute_vectors.py 실행
@@ -130,7 +144,7 @@ npm run start
 
 #### 3. Ollama(LLM) 실행
 - Ollama 모델을 로컬에서 사용하기 위해서는 [공식 문서](https://ollama.com) 참조 후 설치가 필요합니다.
-- 설치 후, 특정 모델(qwq)을 로드하고 싶다면:
+- 설치 후, 특정 모델(qwq)을 다운로드하세요.:
   ```bash
   ollama pull qwq
   ```
@@ -162,33 +176,6 @@ npm run start
 6. **건설안전지침 등 문서 조회**  
    - 사용자가 궁금한 사항을 확인할 수 있도록 관련 **건설안전지침** 문서를 연동  
    - 프론트엔드에서 버튼 클릭 시 열람 가능  
-
----
-
-## 파일 구조
-아래는 예시 구조입니다:
-```
-project-root/
- ├─ docker-compose.yml
- ├─ backend/
- │   ├─ requirements.txt
- │   ├─ main.py
- │   ├─ precompute_vectors.py
- │   └─ ...
- ├─ frontend/
- │   ├─ package.json
- │   ├─ src/
- │   └─ ...
- └─ ...
-```
-
-- **backend**: FastAPI 서버 코드, 유사도 검색, LLM API 호출 로직
-- **frontend**: React 앱, 사용자 입력 및 결과 표시
-
----
-
-## 라이선스
-이 프로젝트는 [MIT License](https://opensource.org/licenses/MIT)를 따릅니다. 필요에 따라 자유롭게 수정 및 배포하실 수 있습니다.
 
 ---
 
