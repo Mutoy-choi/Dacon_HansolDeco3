@@ -10,7 +10,7 @@
 
 **건설 현장의 과거 사고 사례(`database.csv`)를 기반으로, FAISS를 이용한 빠른 유사 사례 검색과 로컬 LLM을 활용하여 최적의 대응 방안을 제안합니다. 이 답변을 기반으로 사용자 피드백(`responses.jsonl`)을 통해 Human Feedback이 된 높은 품질의 데이터 베이스 구축을 목표로 하는 프로젝트입니다.**
 
-* 실제 제출에 사용한 코드와 설명 -> [코드 설명과 ipynb파일일](https://github.com/Mutoy-choi/dacon_hansol3/tree/main/IpynbCode)
+* 실제 제출에 사용한 코드와 설명 -> [코드 설명과 ipynb파일](https://github.com/Mutoy-choi/dacon_hansol3/tree/main/IpynbCode)
 
 ---
 
