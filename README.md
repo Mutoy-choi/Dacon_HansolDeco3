@@ -87,8 +87,8 @@
                                   +---------------------------+                |
                                      |    ^         |                          |
  +-----------------------------------+    |         +--------------------------+
- |                                        |
- v                                        |
+ |                                        |                          |
+ v                                        |                          |
 +-----------------------------+ +----------------------+    +--------------------------+
 | Accident Case Embeddings    | |   Guideline Index    |    | User Feedback            |
 |(backend/vectorized_data.npz)| | (backend/faiss_index)|    | (backend/responses.jsonl)|
