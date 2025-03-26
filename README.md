@@ -348,3 +348,21 @@ Docker를 사용하면 모든 구성 요소를 격리된 환경에서 쉽게 실
 ## 11. 라이선스
 
 이 프로젝트는 [MIT 라이선스](LICENSE) 하에 배포됩니다. 자세한 내용은 프로젝트 루트의 `LICENSE` 파일을 참조하십시오.
+
+다음과 같은 주요 오픈소스 기술 및 모델을 활용하여 개발되었습니다. 각 컴포넌트의 라이선스를 확인하고 준수하는 것은 사용자의 책임입니다.
+
+*   **프레임워크/라이브러리:**
+    *   FastAPI ([MIT License](https://github.com/tiangolo/fastapi/blob/master/LICENSE))
+    *   React ([MIT License](https://github.com/facebook/react/blob/main/LICENSE))
+    *   Vite ([MIT License](https://github.com/vitejs/vite/blob/main/LICENSE))
+    *   FAISS ([MIT License](https://github.com/facebookresearch/faiss/blob/main/LICENSE))
+*   **LLM 실행 도구:**
+    *   Ollama ([MIT License](https://github.com/ollama/ollama/blob/main/LICENSE)) - 로컬 LLM 실행 및 관리 도구
+*   **사용된 LLM 모델:**
+    *   **Qwen/QwQ-32B**:
+        *   **라이선스:** Apache 2.0 License
+        *   **출처/정보:** [https://huggingface.co/Qwen/QwQ-32B](https://huggingface.co/Qwen/QwQ-32B)
+*   **사용된 임베딩 모델:**
+    *   **`ibm-granite/granite-embedding-107m-multilingual`**:
+        *   **라이선스:** Apache 2.0 License
+        *   **출처/정보:** [https://huggingface.co/ibm-granite/granite-embedding-107m-multilingual](https://huggingface.co/ibm-granite/granite-embedding-107m-multilingual)

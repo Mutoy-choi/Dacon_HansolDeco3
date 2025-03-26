@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 ollama
+nltk
 langdetect
 numpy
 scikit-learn
@@ -10,3 +11,9 @@ torch
 transformers
 flash-attn
 einops
+langchain
+langchain_community
+langchain_experimental
+langchain_huggingface
+langchain_ollama
+tqdm

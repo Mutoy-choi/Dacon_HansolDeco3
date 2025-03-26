@@ -10,6 +10,8 @@ from nltk.tokenize import sent_tokenize
 from transformers import AutoTokenizer, AutoModel
 from langchain.embeddings.base import Embeddings
 from langchain.docstore.document import Document
+# 최신 API에 맞는 SemanticChunker 사용
+from langchain_experimental.text_splitter import SemanticChunker
 
 # 최신 LangChain 경고에 따라 community 모듈 사용
 from langchain_community.document_loaders import DirectoryLoader, PDFPlumberLoader
@@ -18,6 +20,7 @@ from langchain_community.vectorstores import FAISS
 # 추가: Ollama LLM을 사용하기 위한 프롬프트 관련 라이브러리
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama.llms import OllamaLLM
+from langchain_huggingface import HuggingFaceEmbeddings
 
 # tqdm 진행 표시줄
 from tqdm import tqdm
@@ -49,58 +52,22 @@ class GraniteEmbeddings(Embeddings):
         embedding = outputs.last_hidden_state.mean(dim=1).squeeze().tolist()
         return embedding
 
+# 2. HuggingFaceEmbeddings를 사용하여 SemanticChunker에 넣을 임베딩 인스턴스 생성
+embedding = HuggingFaceEmbeddings(model_name="ibm-granite/granite-embedding-107m-multilingual")
 
-# 2. Semantic Chunking: 문장을 기준으로 임베딩 유사도를 계산해 문맥이 유사한 문장끼리 병합
-class SemanticTextSplitter:
-    def __init__(self, embedding, max_chunk_size: int = 500, similarity_threshold: float = 0.6):
-        self.embedding = embedding
-        self.max_chunk_size = max_chunk_size
-        self.similarity_threshold = similarity_threshold
-    
-    def split_text(self, text: str) -> List[str]:
-        sentences = sent_tokenize(text)
-        sentence_embeddings = [self.embedding.embed_query(sentence) for sentence in sentences]
-        
-        chunks = []
-        current_chunk = ""
-        current_embeddings = []
-        
-        def cosine_similarity(vec1, vec2):
-            vec1 = np.array(vec1)
-            vec2 = np.array(vec2)
-            return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2) + 1e-8)
-        
-        for sentence, sent_emb in zip(sentences, sentence_embeddings):
-            if not current_chunk:
-                current_chunk = sentence
-                current_embeddings.append(sent_emb)
-            else:
-                avg_embedding = np.mean(np.array(current_embeddings), axis=0)
-                sim = cosine_similarity(avg_embedding, sent_emb)
-                if sim >= self.similarity_threshold and (len(current_chunk) + len(sentence)) <= self.max_chunk_size:
-                    current_chunk += " " + sentence
-                    current_embeddings.append(sent_emb)
-                else:
-                    chunks.append(current_chunk)
-                    current_chunk = sentence
-                    current_embeddings = [sent_emb]
-        if current_chunk:
-            chunks.append(current_chunk)
-        return chunks
+# SemanticChunker를 최신 인터페이스에 맞게 초기화
+text_splitter = SemanticChunker(
+    embeddings=embedding,
+    buffer_size=1,
+    add_start_index=False,
+    breakpoint_threshold_type="percentile",  # 또는 'standard_deviation', 'interquartile', 'gradient'
+    breakpoint_threshold_amount=0.7,         # 청크 병합 기준 임계값
+    number_of_chunks=None,
+    sentence_split_regex=r"(?<=[.?!])\s+",
+    min_chunk_size=500  # 최소 청크 크기를 1000으로 설정 (이전의 chunk_size 대신 사용)
+)
 
-    def split_documents(self, documents: List[Document]) -> List[Document]:
-        new_docs = []
-        for doc in tqdm(documents, desc="Splitting documents into chunks"):
-            chunks = self.split_text(doc.page_content)
-            title = doc.metadata.get("document_title", "Unknown Title")
-            for chunk in chunks:
-                new_content = f"제목: {title}\n\n{chunk}"
-                new_doc = Document(page_content=new_content, metadata=doc.metadata.copy())
-                new_docs.append(new_doc)
-        return new_docs
-
-
-# 3. Ollama LLM 기반 키워드 추출 함수
+# 3. Ollama LLM 기반 키워드 추출 함수 (실시간으로 결과 출력)
 def add_llm_keywords_to_documents(documents: List[Document]) -> List[Document]:
     """
     각 청크에 대해 다음 항목들을 기준으로 키워드를 추출:
@@ -109,14 +76,13 @@ def add_llm_keywords_to_documents(documents: List[Document]) -> List[Document]:
     template = (
         "당신은 건설 안전 규정 및 사고 분석 전문가입니다. "
         "아래 문서는 건설 안전 지침서의 일부입니다. 문서 제목과 내용을 참고하여, "
-        "사고 발생 시 중요한 다음 요소와 관련된 키워드를 추출해주세요:\n"
-        "- 공사종류\n"
+        "사고 발생 시 중요한 다음 요소와 관련된 키워드를 추출해주세요. 공종은 공사종류입니다. 사고객체는 이 환경에서 사고가 났을 때의 물건입니다:\n"
         "- 공종\n"
         "- 사고객체\n"
         "- 작업프로세스\n"
         "- 장소\n\n"
         "각 카테고리별로 해당하는 키워드를 제공해주세요. "
-        "답변은 키워드로만 구성되어야 합니다. \n\n"
+        "답변은 키워드로만 구성되어야 합니다.\n\n"
         "텍스트: {text}\n\n"
         "답변: "
     )
@@ -124,34 +90,47 @@ def add_llm_keywords_to_documents(documents: List[Document]) -> List[Document]:
     model = OllamaLLM(model="gemma3:27b")
     chain = prompt | model
 
-    for doc in tqdm(documents, desc="Extracting LLM Keywords"):
+    for idx, doc in enumerate(tqdm(documents, desc="Extracting LLM Keywords")):
         try:
             result = chain.invoke({"text": doc.page_content})
             doc.metadata["llm_keywords"] = result.strip()
+            # 실시간으로 추출 결과 출력
+            print(f"[Doc {idx+1}] Extracted Keywords: {doc.metadata['llm_keywords']}")
         except Exception as e:
             doc.metadata["llm_keywords"] = f"Error: {e}"
+            print(f"[Doc {idx+1}] Error extracting keywords: {e}")
     return documents
 
 
-# 4. FAISS 벡터 DB 구축 함수
+# 4. FAISS 벡터 DB 구축 함수 (중간 결과 지속 출력)
 def build_vectordb(data_dir: str):
     loader = DirectoryLoader(data_dir, glob="**/*.pdf", loader_cls=PDFPlumberLoader)
     documents = loader.load()
+    print(f"Loaded {len(documents)} documents from '{data_dir}'.")
     
-    for doc in tqdm(documents, desc="Setting document titles"):
+    for idx, doc in enumerate(tqdm(documents, desc="Setting document titles")):
         if "source" in doc.metadata:
             doc.metadata["document_title"] = os.path.basename(doc.metadata["source"])
         else:
             doc.metadata["document_title"] = "Unknown Title"
+        # 각 문서의 제목을 출력
+        print(f"[Doc {idx+1}] Title set to: {doc.metadata['document_title']}")
     
     granite_embeddings = GraniteEmbeddings()
     
-    semantic_splitter = SemanticTextSplitter(embedding=granite_embeddings, max_chunk_size=500, similarity_threshold=0.5)
-    docs = semantic_splitter.split_documents(documents)
+    # 문서를 의미 기반으로 청크 분할
+    docs = text_splitter.split_documents(documents)
+    print(f"Split into {len(docs)} chunks.")
     
+    # 첫 몇 개 청크의 미리보기 출력
+    for i, doc in enumerate(docs[:5]):
+        print(f"Chunk {i+1} preview: {doc.page_content[:200]}...")
+    
+    # LLM을 통한 키워드 추출 (실시간 출력 포함)
     docs = add_llm_keywords_to_documents(docs)
     
     vector_db = FAISS.from_documents(docs, granite_embeddings)
+    print("Vector DB 구축 완료.")
     return vector_db
 
 
@@ -205,8 +184,8 @@ def save_vectordb_to_csv(vector_db, csv_path: str):
 if __name__ == "__main__":
     data_directory = "./"  # PDF 파일이 있는 폴더 경로
     vectordb = build_vectordb(data_directory)
-    print("Vector DB built successfully.")
     
+    # 중간 결과를 출력하여 RAG DB에 어떤 데이터가 들어갔는지 확인
     display_vectordb_info(vectordb, num_docs=10)
     
     # FAISS 인덱스 저장
