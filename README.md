@@ -398,4 +398,3 @@ Docker를 사용하면 모든 구성 요소를 격리된 환경에서 쉽게 실
     *   **`ibm-granite/granite-embedding-107m-multilingual`**:
         *   **라이선스:** Apache 2.0 License
         *   **출처/정보:** [https://huggingface.co/ibm-granite/granite-embedding-107m-multilingual](https://huggingface.co/ibm-granite/granite-embedding-107m-multilingual)
-
