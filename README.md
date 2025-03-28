@@ -185,7 +185,7 @@ FastAPI 백엔드가 유사 사례를 검색하기 위해 **사고 사례 임베
 
 **A. 사고 사례 임베딩 데이터 (`vectorized_data.npz`) 준비:**
 
-이 파일은 `database.csv`(`train.csv`)의 사고 정보를 벡터화하여 저장한 것입니다. 다음 **두 가지 방법 중 하나**를 선택하여 준비합니다.
+이 파일은 `database.csv`(`train.csv`)의 사고 사례 정보를 벡터화하여 저장한 것입니다. 다음 **두 가지 방법 중 하나**를 선택하여 준비합니다.
 
 *   **방법 1 (다운로드):**
     1.  [여기](https://drive.google.com/file/d/1TgNFsKpii-SGkkxd6Rd7MLXWJuJ2NZQn/view?usp=drive_link)에서 `vectorized_data.npz` 파일을 다운로드합니다.
@@ -206,7 +206,7 @@ FastAPI 백엔드가 유사 사례를 검색하기 위해 **사고 사례 임베
 
 **B. 건설안전지침 FAISS 인덱스 생성:**
 
-`database.csv` 파일이 `backend/` 디렉토리에 있는지 확인한 후, 다음 스크립트를 실행하여 인덱스를 생성합니다.
+건설안전지침 PDF파일이 담긴 폴더를 디렉토리에 저장 후, 다음 스크립트를 실행하여 인덱스를 생성합니다.
 
 1.  **백엔드 디렉토리로 이동**:
     ```bash
@@ -228,9 +228,9 @@ FastAPI 백엔드가 유사 사례를 검색하기 위해 **사고 사례 임베
     ```bash
     python buildRAGdb.py
     ```
-    *   이 스크립트는 건설안전지침 관련 데이터를 임베딩하고 `faiss_index/` 디렉토리에 FAISS 인덱스 파일을 생성합니다.
+    *   이 스크립트는 건설안전지침 관련 데이터를 임베딩하고 `faiss_index/` 디렉토리에 FAISS 인덱스 파일 및 DB 관련 csv파일을 생성합니다.
     *   GPU 사용 시 더 빠르게 완료됩니다.
-5.  **(선택) 데이터 정제:** 필요시 `cleanDB.py`를 사용하여 `database.csv`를 전처리할 수 있습니다. (실행 전 `buildRAGdb.py` 또는 `precompute_vectors.py` 실행 필요)
+5.  **데이터 정제 및 업데이트:** 필요시 `cleanDB.py`를 사용하여 `faiss_index/metadata.csv`를 전처리할 수 있습니다. (실행 전 `buildRAGdb.py` 실행 필요, 이후 `updateRAG.py`로 FAISS 인덱스 업데이트가 가능합니다.)
 6.  **프로젝트 루트 디렉토리로 복귀**:
     ```bash
     cd ..
@@ -304,8 +304,8 @@ Docker를 사용하면 모든 구성 요소를 격리된 환경에서 쉽게 실
 
 *   `buildRAGdb.py`: `database.csv`의 데이터를 기반으로 텍스트 임베딩을 계산하고 FAISS 인덱스를 생성하여 `backend/faiss_index/`에 저장합니다. RAG 시스템의 건설안전지침 검색 데이터베이스를 구축하는 핵심 스크립트입니다.
 *   `precompute_vectors.py`: train.csv를 사용하여 벡터화 된 train.csv데이터를 생성하고 저장합니다. RAG 시스템의 실제 생성에서의 검색 데이터베이스를 구축하는 핵심 스크립트입니다.
-*   `updateRAG.py`: 정제하여 metadata.csv에 저장된 데이터를(예: `database.csv`에 추가된 내용 또는 `responses.jsonl` 피드백)를 기존 FAISS 인덱스에 업데이트하는 기능을 수행합니다다.
-*   `cleanDB.py`: `database.csv`나 `responses.jsonl`의 데이터를 정제합니다.
+*   `updateRAG.py`: 정제하여 metadata.csv에 저장된 데이터를(`faiss_index/metadata.csv`에 추가된 내용)를 기존 FAISS 인덱스에 업데이트하는 기능을 수행합니다다.
+*   `cleanDB.py`: `faiss_index/metadata.csv`의 데이터를 정제합니다.
 *   `testRAG.py`: 구현된 RAG 파이프라인(유사도 검색 + LLM 응답 생성)이 예상대로 작동하는지 테스트합니다.
 
 ---

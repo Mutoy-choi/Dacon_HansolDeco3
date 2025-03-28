@@ -81,7 +81,7 @@ def add_llm_keywords_to_documents(documents: List[Document]) -> List[Document]:
         "- 사고객체\n"
         "- 작업프로세스\n"
         "- 장소\n\n"
-        "각 카테고리별로 해당하는 키워드를 제공해주세요. "
+        "각 카테고리별로 해당하는 키워드를 가장 중요한 순서대로 3개 제공해주세요. "
         "답변은 키워드로만 구성되어야 합니다.\n\n"
         "텍스트: {text}\n\n"
         "답변: "
