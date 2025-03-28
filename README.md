@@ -12,6 +12,8 @@
 
 * 실제 제출에 사용한 코드와 설명 -> [코드 설명과 ipynb파일](https://github.com/Mutoy-choi/dacon_hansol3/tree/main/IpynbCode)
 
+* 서면 평가 자료 -> [서면 평가 자료 PDF파일](https://github.com/Mutoy-choi/dacon_hansol3/blob/main/%EB%8F%84%EB%A9%94%EC%9D%B8%20%ED%8A%B9%ED%99%94%20%ED%8F%89%EA%B0%80%20%EC%A7%80%ED%91%9C%EB%A5%BC%20%ED%99%9C%EC%9A%A9%ED%95%9C%20%EA%B1%B4%EC%84%A4%20%EC%82%AC%EA%B3%A0%20%EB%8C%80%EC%9D%91%20%EC%8B%9C%EC%8A%A4%ED%85%9C%20%EA%B0%9C%EB%B0%9C_%ED%8C%80%20AIDA.pdf)
+
 ---
 
 **목차**
