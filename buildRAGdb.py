@@ -193,6 +193,14 @@ if __name__ == "__main__":
     vectordb.save_local(faiss_save_dir)
     print(f"FAISS 인덱스가 저장되었습니다: {faiss_save_dir}")
     
+    # # Backup용 인덱스 저장(필요시 주석 해제)
+    # backup_faiss_dir = "faiss_index"
+    # vectordb.save_local(backup_faiss_dir)
+    # backup_save_path = os.path.join(backup_faiss_dir, "metadata.csv")
+    # save_vectordb_to_csv(vectordb, backup_save_path)
+    
+    
     # CSV 파일로 메타데이터 저장 (faiss_index 폴더 내에 metadata.csv 파일로 저장)
     csv_save_path = os.path.join(faiss_save_dir, "metadata.csv")
+
     save_vectordb_to_csv(vectordb, csv_save_path)

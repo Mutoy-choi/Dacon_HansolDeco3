@@ -34,7 +34,7 @@ class GraniteEmbeddings(Embeddings):
         embedding = outputs.last_hidden_state.mean(dim=1).squeeze().tolist()
         return embedding
 # CSV 파일 경로 설정 (정제된 CSV 파일 경로)
-csv_path = "faiss_index/metadata.csv"  # 실제 파일 경로로 변경하세요
+csv_path = "backend/faiss_index/metadata.csv"  # 실제 파일 경로로 변경하세요
 
 # CSV 파일 읽기
 df = pd.read_csv(csv_path)
