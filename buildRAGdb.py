@@ -189,7 +189,7 @@ if __name__ == "__main__":
     display_vectordb_info(vectordb, num_docs=10)
     
     # FAISS 인덱스 저장
-    faiss_save_dir = "faiss_index"
+    faiss_save_dir = "backend/faiss_index"
     vectordb.save_local(faiss_save_dir)
     print(f"FAISS 인덱스가 저장되었습니다: {faiss_save_dir}")
     
